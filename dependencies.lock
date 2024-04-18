@@ -1,0 +1,22 @@
+dependencies:
+  esp32-wifi-manager:
+    component_hash: 809c587c9f074ae699ee3d6fcec580873da15ed86303c8e7c7ba408ce5a1a474
+    source:
+      git: https://github.com/huardti/esp32-wifi-manager.git
+      path: .
+      type: git
+    version: 278319504537e8d0b6485284eeb35c4df2b9ad68
+  espressif/mdns:
+    component_hash: 9ff9c578fc3a5ea3c68e807233e47f2ce6b2492a92d7a9356ae5c29ab45f0fde
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 1.3.0
+  idf:
+    component_hash: null
+    source:
+      type: idf
+    version: 5.2.1
+manifest_hash: 6a854c142d778a606cd5e6d52e53380ff888ff7cb321c8621a1d27130e83430a
+target: esp32c6
+version: 1.0.0
