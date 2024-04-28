@@ -33,8 +33,9 @@ uint32_t calculate_duty_cycle_count(float curr_freq, float min_freq, float max_f
 
 void step_sequencer_init()
 {
-  float frequency_range_min = 65.41;  // C2 Note
-  float frequency_range_max = 523.25; // C5 Note
+  // C1 to C6 notes frequency range.
+  float frequency_range_min = 32.70;   // C1 Note
+  float frequency_range_max = 1046.50; // C6 Note
 
   // Initialize step data. It's an array of StepData structs.
   // Create a sequence with 16 steps and random number of pitch, modulation (freq), and gate values (1 and 0).
@@ -84,7 +85,7 @@ void step_sequencer_init()
       .flags.output_invert = 0,
   };
 
-  ledc_channel_config(&ledc_cv_channel_2); 
+  ledc_channel_config(&ledc_cv_channel_2);
 
   gpio_config_t gate_conf_channel_1 = {
       .intr_type = GPIO_INTR_DISABLE,
@@ -106,7 +107,7 @@ void step_sequencer_init()
 
   gpio_config(&gate_conf_channel_2);
 
-  int tempo_bpm = 50;                 // It should be set by the user.
+  int tempo_bpm = 100;                 // It should be set by the user.
   int delay_time = 60000 / tempo_bpm; // Calculate delay time for each beat
 
   int sequence_1_length = sizeof(sequence_1) / sizeof(sequence_1[0]);
