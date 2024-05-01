@@ -1,5 +1,6 @@
 #include "esp_wifi.h"
 #include "esp_log.h"
+#include "mqtt.h"
 #include "wifi_manager.h"
 #include "step_sequencer.h"
 
@@ -14,6 +15,9 @@ void cb_connection_ok(void *pvParameter){
 	esp_ip4addr_ntoa(&param->ip_info.ip, str_ip, IP4ADDR_STRLEN_MAX);
 
 	ESP_LOGI(TAG, "I have a connection and my IP is %s!", str_ip);
+
+	// Start the MQTT client
+	mqtt_app_start();
 }
 
 void app_main(void)
