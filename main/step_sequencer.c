@@ -7,11 +7,33 @@
 #include "esp_err.h"
 
 #define TIMER_FREQUENCY (5000)
-#define LEDC_CV_DUTY (8192) // Set duty to 100%. (2 ** 13) * 100%
-#define GATE_1_GPIO (10)
-#define GATE_2_GPIO (11)
-#define CV_1_GPIO (23)
-#define CV_2_GPIO (22)
+#define LEDC_CV_DUTY (8192)        // Set duty cycle to 100%. (2 ** 13) * 100%
+#define POTENTIOMETER_GPIO (4)     // For setup the tempo.
+#define CV_IN_1_GPIO (0)           // For external CV input. Modulating the sequence.
+#define CV_IN_2_GPIO (1)           // For external CV input. Modulating the sequence.
+#define CV_IN_3_GPIO (2)           // For external CV input. Modulating the sequence.
+#define CV_IN_4_GPIO (3)           // For external CV input. Modulating the sequence.
+#define CLOCK_IN_GPIO (6)          // For external clock input.
+#define SWITCH_RANDOM_GPIO (5)     // For randomize the sequence.
+#define SWITCH_REVERSE_GPIO (7)    // For reverse the sequence.
+#define BUTTON_START_STOP_GPIO (8) // For start and stop the sequencer.
+#define BUTTON_BANK_A_GPIO (9)     // For select pattern in bank A.
+#define BUTTON_BANK_B_GPIO (12)    // For select pattern in bank B.
+#define CV_OUT_1_GPIO (20)
+#define CV_OUT_2_GPIO (21)
+#define CV_OUT_3_GPIO (22)
+#define CV_OUT_4_GPIO (23)
+#define CV_OUT_5_GPIO (10)
+#define CV_OUT_6_GPIO (11)
+#define CV_OUT_7_GPIO (15)
+#define CV_OUT_8_GPIO (18)
+#define CV_OUT_9_GPIO (19)
+#define CV_OUT_10_GPIO (13)
+#define FREQUENCY_RANGE_MIN (27.50)   // A0 Note
+#define FREQUENCY_RANGE_MAX (4186.01) // C8 Note
+
+int tempo_bpm;  // It should be set by the user.
+int delay_time; // Calculate delay time for each beat
 
 /**
  * @brief Calculate the duty cycle count for a given frequency within a specified range.
@@ -33,25 +55,9 @@ uint32_t calculate_duty_cycle_count(float curr_freq, float min_freq, float max_f
 
 void step_sequencer_init()
 {
-  // C1 to C6 notes frequency range.
-  float frequency_range_min = 32.70;   // C1 Note
-  float frequency_range_max = 1046.50; // C6 Note
-
-  // Initialize step data. It's an array of StepData structs.
-  // Create a sequence with 16 steps and random number of pitch, modulation (freq), and gate values (1 and 0).
-  StepData sequence_1[16];
-  for (int i = 0; i < 16; i++)
-  {
-    sequence_1[i].pitch = frequency_range_min + ((float)rand() / RAND_MAX) * (frequency_range_max - frequency_range_min);
-    sequence_1[i].gate = rand() % 2;
-  }
-
-  StepData sequence_2[32];
-  for (int i = 0; i < 32; i++)
-  {
-    sequence_2[i].pitch = frequency_range_min + ((float)rand() / RAND_MAX) * (frequency_range_max - frequency_range_min);
-    sequence_2[i].gate = rand() % 2;
-  }
+  // Default tempo is 120 BPM.
+  tempo_bpm = 120;
+  delay_time = 60000 / tempo_bpm;
 
   ledc_timer_config_t ledc_timer = {
       .duty_resolution = LEDC_TIMER_13_BIT,
@@ -63,85 +69,52 @@ void step_sequencer_init()
 
   ledc_timer_config(&ledc_timer);
 
-  ledc_channel_config_t ledc_cv_channel_1 = {
-      .channel = LEDC_CHANNEL_0,
-      .duty = LEDC_CV_DUTY,
-      .gpio_num = CV_1_GPIO,
-      .speed_mode = LEDC_LOW_SPEED_MODE,
-      .timer_sel = LEDC_TIMER_0,
-      .hpoint = 0,
-      .flags.output_invert = 0,
-  };
+  // Setup the array of CV_OUT GPIOs.
+  int cv_out_gpios[] = {
+      CV_OUT_1_GPIO,
+      CV_OUT_2_GPIO,
+      CV_OUT_3_GPIO,
+      CV_OUT_4_GPIO,
+      CV_OUT_5_GPIO,
+      CV_OUT_6_GPIO,
+      CV_OUT_7_GPIO,
+      CV_OUT_8_GPIO,
+      CV_OUT_9_GPIO,
+      CV_OUT_10_GPIO};
 
-  ledc_channel_config(&ledc_cv_channel_1);
+  int cv_out_gpios_size = sizeof(cv_out_gpios) / sizeof(cv_out_gpios[0]);
 
-  ledc_channel_config_t ledc_cv_channel_2 = {
-      .channel = LEDC_CHANNEL_1,
-      .duty = LEDC_CV_DUTY,
-      .gpio_num = CV_2_GPIO,
-      .speed_mode = LEDC_LOW_SPEED_MODE,
-      .timer_sel = LEDC_TIMER_0,
-      .hpoint = 0,
-      .flags.output_invert = 0,
-  };
+  // Initialize the configuration for the CV_OUT ledc channels.
+  for (int i = 0; i < cv_out_gpios_size; i++)
+  {
+    ledc_channel_config_t ledc_cv_out_channel = {
+        .channel = (i < 6) ? LEDC_CHANNEL_0 : LEDC_CHANNEL_1,
+        .duty = 0,
+        .gpio_num = cv_out_gpios[i],
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .timer_sel = LEDC_TIMER_0,
+        .hpoint = 0,
+        .flags.output_invert = 0,
+    };
 
-  ledc_channel_config(&ledc_cv_channel_2);
+    ledc_channel_config(&ledc_cv_out_channel);
+  }
+}
 
-  gpio_config_t gate_conf_channel_1 = {
-      .intr_type = GPIO_INTR_DISABLE,
-      .mode = GPIO_MODE_OUTPUT,
-      .pin_bit_mask = (1ULL << GATE_1_GPIO),
-      .pull_down_en = 0,
-      .pull_up_en = 0,
-  };
-
-  gpio_config(&gate_conf_channel_1);
-
-  gpio_config_t gate_conf_channel_2 = {
-      .intr_type = GPIO_INTR_DISABLE,
-      .mode = GPIO_MODE_OUTPUT,
-      .pin_bit_mask = (1ULL << GATE_2_GPIO),
-      .pull_down_en = 0,
-      .pull_up_en = 0,
-  };
-
-  gpio_config(&gate_conf_channel_2);
-
-  int tempo_bpm = 100;                 // It should be set by the user.
-  int delay_time = 60000 / tempo_bpm; // Calculate delay time for each beat
-
-  int sequence_1_length = sizeof(sequence_1) / sizeof(sequence_1[0]);
-  int sequence_2_length = sizeof(sequence_2) / sizeof(sequence_2[0]);
+void step_sequencer_play()
+{
   int step = 0;
+
   while (1)
   {
-    // Get the current step data, and make sure it will go back to the first step after the last step.
-    StepData current_step_1 = sequence_1[step % sequence_1_length];
-    StepData current_step_2 = sequence_2[step % sequence_2_length];
-
-    float frequency_1 = current_step_1.pitch;
-    float frequency_2 = current_step_2.pitch;
-
-    // Calculate LEDC timer count based on the period of the frequency.
-    uint32_t ledc_cv_count_channel_1 = calculate_duty_cycle_count(frequency_1, frequency_range_min, frequency_range_max);
-    uint32_t ledc_cv_count_channel_2 = calculate_duty_cycle_count(frequency_2, frequency_range_min, frequency_range_max);
-
-    printf("Gate channel 1 set %d\n", current_step_1.gate);
-    gpio_set_level(GATE_1_GPIO, current_step_1.gate);
-
-    printf("Gate channel 2 set %d\n", current_step_2.gate);
-    gpio_set_level(GATE_2_GPIO, current_step_2.gate);
-
-    printf("CV channel 1 duty to %lu\n", ledc_cv_count_channel_1);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, ledc_cv_count_channel_1);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
-
-    printf("CV channel 2 duty to %lu\n", ledc_cv_count_channel_2);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, ledc_cv_count_channel_2);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1);
+    // TODO: Implement the step sequencer logic here.
 
     vTaskDelay(delay_time / portTICK_PERIOD_MS);
-
     step++;
   }
+}
+
+void step_sequencer_stop()
+{
+  // TODO: Implement the stop functionality here.
 }

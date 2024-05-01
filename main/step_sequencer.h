@@ -1,11 +1,31 @@
 #ifndef STEP_SEQUENCER_H
 #define STEP_SEQUENCER_H
 
-typedef struct {
+typedef struct
+{
     int step;
     double pitch;
     int gate;
 } StepData;
+
+enum SequenceMode
+{
+    FORWARD,
+    BACKWARD,
+    PING_PONG
+};
+
+enum ClockSource
+{
+    INTERNAL,
+    EXTERNAL
+};
+
+enum StepSequencerState
+{
+    STOPPED,
+    PLAYING
+};
 
 // Initializes the step sequencer with the specified number of steps, CV outputs, and gate outputs.
 void step_sequencer_init();
